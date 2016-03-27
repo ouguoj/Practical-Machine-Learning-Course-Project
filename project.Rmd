@@ -1,0 +1,79 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Guojian Ou"
+date: "27 March 2016"
+output: html_document
+---
+#Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit, it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. We will then predict whether the participants did the exercise correctly or incorrectly. 
+
+
+
+#Download and prepare the data
+```{r}
+library(caret)
+library(randomForest)
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", "pml-training.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", "pml-testing.csv")
+training<-read.csv("pml-training.csv")
+testing<-read.csv("pml-testing.csv")
+training<-training[-1]
+testing<-testing[-1]
+```
+
+We now remove columns with almost 0 variance, as well as data that should not have any bearing on the outcome classe, such as timestamp and name of participants. 
+
+```{r}
+zerovar<-nearZeroVar(training)
+training1<-training[,-zerovar]
+training2<-training1[,6:99]
+
+```
+
+We also remove the colums which have at least 1 NA term. Hence, we only choose variables that are complete over all the observations. 
+
+```{r}
+
+colnoNA<-which(colSums(is.na(training2))==0)
+training3<-training2[,colnoNA]
+
+```
+
+#Creating the Model
+
+We will use the Random Forest algorithm to create a model. However, we will first split the training data further into a training data (70%) and for validation (30%). 
+
+We first create a data parition and split the training data. 
+```{r}
+
+set.seed(2016) 
+inTrain <- createDataPartition(training3$classe, p=0.70, list=F)
+trainData <- training3[inTrain, ]
+testData <- training3[-inTrain, ]
+
+```
+We load the RandomForest package and train a Random Forest model. This will take a while due to the large number of variables and data points. We thus save the model so that we do not need to re-run the simulation. 
+
+```{r, eval=FALSE}
+
+model_RF<-train(classe~., data=trainData, method="rf")
+saveRDS(model_RF, "RFModel.rds")
+```
+```{r}
+model_RF<-readRDS("RFModel.rds")
+```
+
+#Validating the Data
+
+We next test and validate the model on testData.
+
+```{r}
+predictClasse<-predict(model_RF, testData)
+confusionMatrix(testData$classe, predictClasse)
+```
+
+From the table we can tell that the overall accuracy of the model is 99.37% on the testing data. This validates our model.
+
